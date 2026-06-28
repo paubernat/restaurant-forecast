@@ -102,7 +102,7 @@ the Space with `make check-endpoint`.
 ### 3 · Run
 
 ```bash
-# Smoke test — 1 CV fold, tree/baseline only, no endpoint (~1 min):
+# Smoke test — 1 CV fold, tree/baseline only, no endpoint (~4 min, full 4-step pipeline):
 python -m forecasting evaluate --folds 1 --offline
 
 make evaluate     # full temporal CV + comparison report + plots  (the headline)
