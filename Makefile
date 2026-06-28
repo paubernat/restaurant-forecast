@@ -1,4 +1,4 @@
-.PHONY: help install data lint fmt test check-endpoint experiment train predict evaluate docker-build docker-up clean
+.PHONY: help install data lint fmt test check-endpoint train predict evaluate docker-up clean
 
 help:
 	@echo "Targets:"
@@ -7,12 +7,10 @@ help:
 	@echo "  lint          ruff check"
 	@echo "  fmt           black + ruff --fix"
 	@echo "  test          pytest"
-	@echo "  train         Train all models (application/train.py)"
-	@echo "  predict       Batch forecast with the latest model (application/predict.py)"
-	@echo "  evaluate      Temporal CV + comparison report/plots (application/evaluate.py)"
+	@echo "  evaluate      Temporal CV + selection + comparison report/plots; logs to MLflow"
+	@echo "  train         Refit the selected winner on all data -> best_model.pkl"
+	@echo "  predict       Batch forecast with the latest model -> forecasts.csv"
 	@echo "  check-endpoint Probe the TimesFM HF Space (health + a sample forecast)"
-	@echo "  experiment    Full model selection + report (find-best-model); logs to MLflow"
-	@echo "  docker-build  Build the image (CPU-only; TimesFM is served over HTTP)"
 	@echo "  docker-up     Run the full pipeline via docker compose"
 
 install:
@@ -44,13 +42,6 @@ evaluate:
 check-endpoint:
 	set -a; [ -f .env ] && . ./.env || true; set +a; \
 	python scripts/check_timesfm_endpoint.py "$$FORECAST_TIMESFM_ENDPOINT" "$$FORECAST_TIMESFM_ENDPOINT_TOKEN"
-
-# Full 4-step selection + holdout report. python -m forecasting auto-loads .env (see config.py).
-experiment:
-	python -m forecasting find-best-model
-
-docker-build:
-	docker build -t gstock-forecasting .
 
 docker-up:
 	docker compose up

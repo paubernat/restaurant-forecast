@@ -74,36 +74,66 @@ The domain imports no adapters; the CLI is the only place they're wired together
 
 ## Quickstart
 
-### Docker (recommended — no manual steps)
+**Prerequisites:** Python ≥ 3.11 (Docker optional). The Recruit CSVs are **already bundled** in
+`data/raw/` (committed), so nothing below needs a download.
+
+### 1 · Install
 
 ```bash
-docker compose up          # runs temporal CV across models, writes plots + MLflow runs
+git clone <repo-url> && cd gstock
+python -m venv .venv && source .venv/bin/activate   # recommended
+make install                                        # pip install -e ".[dev]"
+make test                                           # 46 tests (~15s) — confirms the install
+```
+
+### 2 · TimesFM endpoint (optional)
+
+TimesFM is served over HTTP from a Hugging Face Space — never run locally. To include the two
+TimesFM models, point the app at the Space:
+
+```bash
+cp .env.example .env        # set FORECAST_TIMESFM_ENDPOINT (+ _TOKEN if the Space is private)
+```
+
+`.env` is gitignored and auto-loaded by every command (and by `docker compose`). **Without it**,
+runs use the tree/baseline models only — or pass `--offline` to skip TimesFM explicitly. Probe
+the Space with `make check-endpoint`.
+
+### 3 · Run
+
+```bash
+# Smoke test — 1 CV fold, tree/baseline only, no endpoint (~1 min):
+python -m forecasting evaluate --folds 1 --offline
+
+make evaluate     # full temporal CV + comparison report + plots  (the headline)
+make train        # refit the selected winner on all data -> artifacts/best_model.pkl
+make predict      # batch-forecast the next horizon  -> artifacts/forecasts.csv
+```
+
+Every subcommand accepts `--horizon` (days ahead, default 14); `evaluate` also takes `--folds`
+and `--metric`. See `python -m forecasting --help`.
+
+### Docker (one command, no setup)
+
+```bash
+docker compose up          # temporal CV across models, writes plots + MLflow runs
 # MLflow UI -> http://localhost:5000 ; artifacts -> ./artifacts
 ```
 
-The image is CPU-only and bundles the data — no checkpoint, no torch, no Kaggle creds at
-runtime. TimesFM runs as a Hugging Face Space: set `FORECAST_TIMESFM_ENDPOINT` (and
-`FORECAST_TIMESFM_ENDPOINT_TOKEN` if the Space is private — put them in a gitignored `.env`,
-which compose reads automatically) to include it. Without an endpoint, the run uses the
-tree/baseline models only (equivalently, pass `--offline` to skip TimesFM explicitly).
-
-### Local
-
-```bash
-make install               # pip install -e ".[dev]"
-make data                  # download Recruit CSVs into data/raw (needs Kaggle creds)
-make test                  # pytest
-make evaluate              # temporal CV + comparison report
-make train                 # fit + persist all models
-make predict               # batch forecast with the latest model (the CronJob entrypoint)
-```
+CPU-only image, data baked in, no torch or Kaggle creds at runtime. Reads the same `.env` for
+the optional TimesFM endpoint.
 
 ## Reproducing the results
 
-1. `make data` (or use the bundled CSVs) → `data/raw/`.
-2. `make evaluate` → metrics table (RMSLE primary), per-horizon error, and the
-   normal-vs-holiday-window breakdown, plus plots under `artifacts/`.
-3. Browse runs in MLflow (`make docker-up`).
+```bash
+make install
+make evaluate              # data is bundled; export FORECAST_TIMESFM_ENDPOINT to include TimesFM
+```
+
+Outputs land in `artifacts/`: the comparison plots (pred-vs-real, residuals, error-by-horizon,
+seasonal, feature importances), `selection.json` (chosen winner + horizon + holdout metrics),
+and `best_model.pkl`. Browse the tracked runs with `mlflow ui --backend-store-uri
+sqlite:///mlflow.db` (or `docker compose up` → http://localhost:5000).
 
 ## Kubernetes (demo)
 
