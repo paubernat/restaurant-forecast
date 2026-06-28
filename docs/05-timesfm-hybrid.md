@@ -90,7 +90,7 @@ how a holiday or a reservation surge bends it.
 ## The compute trap and how we bound it (`adapters/models/timesfm/features.py`)
 
 A naive hybrid runs TimesFM per horizon step inside both the training and the inference loops —
-hours of Transformer calls. The window design plus two bounds keep it cheap:
+hours of Transformer calls. The window design plus three bounds keep it cheap:
 
 1. **One call per origin, not per step.** Each origin's window forecast covers the whole
    horizon, so inference is **1 TimesFM call per forecast origin** (was ~horizon), and training
@@ -99,8 +99,16 @@ hours of Transformer calls. The window design plus two bounds keep it cheap:
    window once at each origin `c` and emits rows at `date = c + step`, so the head trains on the
    *same offset-k feature it sees at inference* (the old offset-1 mismatch is gone). The window
    for `c` depends only on history ≤ c, so it's identical across CV folds/configs →
-   **memoised by origin**, and origins are **subsampled to the most recent
-   `timesfm_train_cutoffs`** to bound size. The Transformer never runs inside a tree `fit`.
+   **memoised by origin** (in-memory, `TimesFMFeatureGenerator._memo`), and origins are
+   **subsampled to the most recent `timesfm_train_cutoffs`** to bound size. The Transformer
+   never runs inside a tree `fit`.
+3. **Durable per-series cache at the client.** A TimesFM forecast is a pure function of
+   `(trimmed history, horizon)`, so `RemoteTimesFMForecaster` content-addresses each series
+   (SHA-256) and caches the result on disk (`timesfm_cache_dir`, default `.cache/timesfm`,
+   gitignored; `npz`). The same `(store, cutoff)` series recurs across folds, across steps 1 & 3,
+   across **both** TimesFM models, and across reruns — so each unique forecast hits the GPU
+   **once, ever**. Only cache-misses in a batch are POSTed; a fully-cached batch makes no HTTP
+   call at all. Set `timesfm_cache_dir=""` to disable.
 
 (Lags at *train* time stay on actual history — the standard recursive-strategy training; the
 tree's own in-window predictions don't exist yet, so actuals are the only well-defined choice.)

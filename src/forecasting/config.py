@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     # operational ordering window; override per run with `--horizon`.
     horizon_days: int = 14
     # The separate, longer window for the headline pred-vs-real holdout (carved off first,
-    # never touched by CV). 39 = the Recruit holdout (2017-04-23 → 2017-05-31), so the demo
-    # forecast mirrors the dataset's official test window.
+    # never touched by CV). 39 = the length of the official Recruit test window; we hold out the
+    # last 39 days of *labeled* data (labels end 2017-04-22, so the holdout is 2017-03-15→04-22).
+    # Golden Week falls in the official scoring window, which has no public labels.
     final_horizon_days: int = 39
     # CV reads (roughly) the last year; the use case derives n_folds = cv_window_days //
     # cv_stride_days. Override per run with `--folds`.

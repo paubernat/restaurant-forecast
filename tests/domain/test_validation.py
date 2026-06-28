@@ -40,7 +40,8 @@ def test_stride_days_overlaps_and_steps_origins_by_stride():
     folds = validation.rolling_origin_splits(DATES, n_folds=5, horizon_days=HORIZON, stride_days=5)
     # Origins (valid_end) step by exactly `stride` days, not by the horizon.
     valid_ends = [f.valid_end for f in folds]
-    steps = {(later - earlier).days for earlier, later in zip(valid_ends, valid_ends[1:], strict=False)}
+    pairs = zip(valid_ends, valid_ends[1:], strict=False)
+    steps = {(later - earlier).days for earlier, later in pairs}
     assert steps == {5}
     # stride < horizon => consecutive validation windows OVERLAP (origin rotates the weekday).
     assert any(earlier.valid_end >= later.valid_start

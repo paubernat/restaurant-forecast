@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from forecasting.domain.services import features
 from forecasting.domain.entities import DATE, STORE, TARGET
+from forecasting.domain.services import features
 
 
 def _panel(store: str, start: str, n: int, base: int = 10) -> pd.DataFrame:
@@ -41,7 +41,8 @@ def test_closed_days_reindexed_to_zero_with_flag():
 
 
 def test_calendar_features():
-    feat = features.FeatureBuilder(_panel("air_a", "2016-01-01", 14)).build()  # 2016-01-02 is a Saturday
+    # 2016-01-02 is a Saturday
+    feat = features.FeatureBuilder(_panel("air_a", "2016-01-01", 14)).build()
     sat = feat[feat[DATE] == pd.Timestamp("2016-01-02")].iloc[0]
     assert sat["is_weekend"] == 1 and sat["dow"] == 5
     assert feat["doy_sin"].between(-1, 1).all() and feat["doy_cos"].between(-1, 1).all()

@@ -33,8 +33,9 @@ This is covered by `tests/domain/test_evaluation.py` (negative prediction → fi
 ## Temporal validation
 
 Both in `domain/validation.py`. **The holdout is carved off first**
-(`final_holdout`) — the last `final_horizon_days` (**39** = the 2017-04-23→05-31 Recruit
-window) — and is reserved for the final pred-vs-real forecast only. Rolling-origin CV
+(`final_holdout`) — the last `final_horizon_days` (**39**, the length of the official Recruit
+test window) of *labeled* data (labels end 2017-04-22, so the holdout is 2017-03-15→04-22) —
+and is reserved for the final pred-vs-real forecast only. Rolling-origin CV
 (`rolling_origin_splits`) then runs on the *earlier* history alone, so it never touches the
 holdout. The **CV horizon** is a separate, shorter operational window: `config.horizon_days`
 (default **14**) or `--horizon`. The CV reads roughly the **last year** — the use case derives
@@ -75,12 +76,14 @@ The deployable winner is then re-fit on **all** data (incl. the holdout) and per
 
 ## Golden Week (business-aware validation)
 
-The holdout window (late Apr–May 2017) spans **Japan's Golden Week**, a cluster of national
-holidays where restaurant demand can multiply. Two consequences, both handled:
+**Japan's Golden Week** (late Apr–early May) is a cluster of national holidays where restaurant
+demand can multiply. The labeled data ends 2017-04-22, so the carved holdout (2017-03-15→04-22)
+just misses it — Golden Week sits in the official scoring window, which has no public labels.
+It still matters here for two reasons, both handled:
 
 1. **Train must have seen the pattern.** At least one rolling fold includes a **prior**
-   holiday period (2016's Golden Week). Otherwise the trees never learn the spike and the
-   holdout is unfair to them — they'd predict a normal Monday and miss 3×.
+   holiday period (2016's Golden Week). Otherwise the trees never learn the spike and would
+   miss it on any future holiday — they'd predict a normal Monday and miss 3×.
 2. **Report it separately.** The comparison report stratifies error **by season** (above) so
    the high-volatility windows don't hide inside an average — a model can look fine overall
    while being terrible exactly on the high-stakes days that drive ordering. (The `golden_week`

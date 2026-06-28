@@ -53,7 +53,7 @@ class CVScore:
     """The outcome of scoring one (model, params) across the folds."""
     score: float                # mean of the selection metric over folds
     suite: dict[str, float]     # mean of the full metric suite over folds
-    predictions: pd.DataFrame   # concatenated fold preds [store, date, y_pred, y_true, horizon_offset]
+    predictions: pd.DataFrame   # fold preds [store, date, y_pred, y_true, horizon_offset]
 
 
 class CrossValidator:

@@ -35,7 +35,11 @@ def test_remote_roundtrip_and_context_trim(monkeypatch):
 
     monkeypatch.setattr(timesfm_remote.requests, "post", fake_post)
 
-    fc = RemoteTimesFMForecaster(endpoint="http://test/forecast", max_context=2, max_horizon=7)
+    # cache_dir="" disables the disk cache so the test is hermetic and always exercises the
+    # wire path (the disk/mem cache has its own self-check in remote.py's __main__).
+    fc = RemoteTimesFMForecaster(
+        endpoint="http://test/forecast", max_context=2, max_horizon=7, cache_dir=""
+    )
     point, quant = fc.forecast([np.arange(5.0), np.array([4.0, 5.0])], horizon=3)
 
     assert point.shape == (2, 3)

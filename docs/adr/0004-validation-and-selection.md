@@ -15,9 +15,10 @@ and that isolates each modelling choice. Full reasoning in [`../04-evaluation.md
 A pure-domain validation + selection service (`domain/validation.py` +
 `domain/services/model_selection/`), with four properties:
 
-1. **Holdout carved off first.** The last `final_horizon_days` (39 = the 2017 Recruit window,
-   incl. Golden Week) is set aside before any CV and never touched. Only the final deployable
-   model is refit *including* it.
+1. **Holdout carved off first.** The last `final_horizon_days` (39 = the length of the official
+   Recruit test window) of labeled data is set aside before any CV and never touched (labels end
+   2017-04-22, so it's 2017-03-15→04-22; Golden Week falls in the unlabeled scoring window). Only
+   the final deployable model is refit *including* it.
 2. **Rolling-origin, expanding-window CV** on the earlier history. A split is three dates
    (`train_end < valid_start ≤ valid_end`), never row indices, never shuffled. Each fold trains
    on **all** history up to its cutoff (the train set grows fold to fold) and validates the next

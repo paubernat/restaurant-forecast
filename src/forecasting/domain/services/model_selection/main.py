@@ -122,5 +122,6 @@ class ModelSelector:
             f"folds={result['n_folds']} | "
             f"step1 best={ranking.best_name} ({ranking.scores[ranking.best_name]:.4f}) | "
             f"selected {len(result['selected_features'])} features | "
-            f"winner={tuning.winner_name} {dict(tuning.winner_params)} (cv {tuning.winner_score:.4f})"
+            f"winner={tuning.winner_name} {dict(tuning.winner_params)} "
+            f"(cv {tuning.winner_score:.4f})"
         )

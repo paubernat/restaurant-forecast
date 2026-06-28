@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from forecasting.domain.services.features import FeatureBuilder
 from forecasting.domain.ports.data_source import RawData
+from forecasting.domain.services.features import FeatureBuilder
 
 STORES = ["air_a", "air_b", "air_c"]
 

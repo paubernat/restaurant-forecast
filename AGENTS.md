@@ -100,16 +100,20 @@ Work is phased (see [`roadmap/`](./roadmap)). Stubs carry a `Phase N` marker and
 - **No leakage:** every lag/rolling feature is shifted so a row never sees its own target or
   the future; target-based store aggregates use `reference` = the train slice. Validation is by
   date only — never random K-fold on a time series; the final holdout is carved off first.
-- **Golden Week:** at least one training fold must contain a prior holiday period; evaluation
-  reports normal-days vs holiday-window error separately (reuses the `golden_week` feature).
+- **Golden Week:** at least one training fold must contain a prior holiday period (2016's), so
+  the trees learn the spike; evaluation reports error **by season** (the `golden_week` feature
+  is available for a finer holiday-window cut if wanted). The carved labeled holdout itself
+  (2017-03-15→04-22) just misses Golden Week — it falls in the unlabeled official window.
 - **TimesFM, two ways:** (1) `timesfm_zeroshot` — TimesFM standalone, native n-day forecast,
   `recursive = False`. (2) `timesfm_hybrid` — TimesFM **whole-horizon window** signal +
   engineered features → XGBoost. TimesFM forecasts the whole horizon **once at the cutoff**
   (over history ≤ cutoff) via the `Predictor.prepare_window` hook, so it runs **out of the
   recursive loop entirely**; only the engineered lags recurse (each step's prediction feeds
   back into the lags, never into TimesFM). **Training** the hybrid uses the window signal over
-  *actual* origins (`training_signal`, memoised in-memory per origin — a Parquet/feature-store
-  cache is the scale-up path, not what runs today). Never run TimesFM inside a training/CV fit.
+  *actual* origins (`training_signal`, memoised in-memory per origin). Underneath, the remote
+  client content-addresses each series and caches forecasts on disk (`.cache/timesfm`), so a
+  given `(series, horizon)` hits the GPU once across all folds/steps/models/reruns. Never run
+  TimesFM inside a training/CV fit.
 - **TimesFM is remote-only.** The package never imports `timesfm` or `torch` and never
   downloads the checkpoint — it POSTs to a GPU Hugging Face Space (`space/app.py`) through
   `RemoteTimesFMForecaster`, injected from the CLI. Set `FORECAST_TIMESFM_ENDPOINT` to include

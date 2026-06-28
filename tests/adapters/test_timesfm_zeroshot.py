@@ -1,8 +1,8 @@
 """Zero-shot adapter logic, with a fake forecaster (no TimesFM/torch needed).
 
 Asserts the offset mapping (cutoff -> horizon step) and non-negative output. The real
-TimesFM loader is exercised manually / in the CV run, not here — it's a heavy git+torch
-dependency and a network download.
+TimesFM forecast is a remote-endpoint call (adapters/models/timesfm/remote.py), exercised
+in the CV run, not here.
 """
 
 from __future__ import annotations

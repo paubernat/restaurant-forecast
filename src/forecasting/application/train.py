@@ -14,8 +14,7 @@ from __future__ import annotations
 
 import json
 
-from ..domain.services.features import FeatureBuilder
-from ..domain.services.features import subset_features
+from ..domain.services.features import FeatureBuilder, subset_features
 
 __all__ = ["run"]
 

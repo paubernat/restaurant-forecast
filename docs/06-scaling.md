@@ -29,9 +29,10 @@ Gstock forecasts units **per product per center**, so the real series count is
 ## 3. Feature & compute scaling
 
 - The **TimesFM signal cache** ([`05`](./05-timesfm-hybrid.md)) is the scaling linchpin. Today
-  it's memoised **in-memory per origin** within a run; at scale it graduates to a durable
-  **Parquet / feature-store** cache: precompute signals as a batch job, store them, reuse across
-  experiments and retrains. Inference parallelises trivially across series.
+  forecasts are already content-addressed and cached **per series on disk** (`.cache/timesfm`),
+  reused across folds, steps, both TimesFM models and reruns; at scale that disk cache graduates
+  to a shared **feature store** keyed by `(series, cutoff, horizon)` so a precompute batch job's
+  signals are reused fleet-wide. Inference parallelises trivially across series.
 - Feature pipelines move to a columnar store / feature store keyed by `(center, sku, date)`.
 - Heavy backfills become Spark/Ray jobs; the hexagonal `DataSource` port means swapping the
   CSV adapter for a warehouse adapter touches one file.

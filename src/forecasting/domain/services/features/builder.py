@@ -38,7 +38,10 @@ def aggregate_reservations(reservations: pd.DataFrame) -> pd.DataFrame:
     r[DATE] = pd.to_datetime(r[DATE]).dt.normalize()
     res = (
         r.groupby([STORE, DATE])
-        .agg(reserve_visitors=("reserve_visitors", "sum"), reserve_count=("reserve_visitors", "size"))
+        .agg(
+            reserve_visitors=("reserve_visitors", "sum"),
+            reserve_count=("reserve_visitors", "size"),
+        )
         .reset_index()
     )
     if "lead_time_days" in r.columns:
@@ -325,7 +328,8 @@ class FeatureBuilder:
                 parts = s["area"].astype(str).str.split(" ", n=2, expand=True)
                 s["area_prefecture"] = parts[0]
                 s["area_ward"] = parts[1] if parts.shape[1] > 1 else None
-            keep = [STORE] + [c for c in ("genre", "area_prefecture", "area_ward") if c in s.columns]
+            cols = ("genre", "area_prefecture", "area_ward")
+            keep = [STORE] + [c for c in cols if c in s.columns]
             df = df.merge(s[keep].drop_duplicates(STORE), on=STORE, how="left")
             for c in ("genre", "area_prefecture", "area_ward"):
                 if c in df.columns:

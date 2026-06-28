@@ -42,10 +42,12 @@ The `recruit_csv` adapter reads the six files it needs (`_REQUIRED` in
 canonical schema in `domain/entities.py` (`store_id`, `date`, `visitors`), so the rest of the
 codebase never sees the AIR/HPG split.
 
-**Shape:** ~829 AIR stores, daily from **Jan 2016 to Apr 2017**. The official holdout is the
-~39 days **2017-04-23 → 2017-05-31**, which contains Japan's **Golden Week** — the single
-biggest demand spike of the year, and why evaluation is stratified around it (see
-[`04-evaluation.md`](./04-evaluation.md)).
+**Shape:** ~829 AIR stores, daily from **Jan 2016 to 2017-04-22** (labels end there). The
+*official* competition holdout is the 39 days **2017-04-23 → 2017-05-31** — which contains
+Japan's **Golden Week**, the single biggest demand spike of the year — but those rows are
+unlabeled (`sample_submission.csv` only). So our pred-vs-real holdout is instead the last 39
+**labeled** days (2017-03-15 → 04-22); Golden Week is handled in training and seasonal
+stratification rather than in the holdout (see [`04-evaluation.md`](./04-evaluation.md)).
 
 ## Why this structure fits the task
 

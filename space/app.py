@@ -23,14 +23,16 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 CHECKPOINT = os.environ.get("TIMESFM_CHECKPOINT", "google/timesfm-2.5-200m-pytorch")
-MAX_HORIZON = int(os.environ.get("TIMESFM_MAX_HORIZON", "64"))  # >= largest run horizon (CV 14, holdout 39)
-# Context buckets (multiples of the 32-pt patch). A series is fed to the LARGEST bucket that fits
-# its real history, most-recent points only — no padding. TimesFM NaNs when an input is shorter than
-# its compiled context (short input -> internal pad+mask -> NaN, issue #321), so we size the model to
-# the data, not the data to the model. Granularity is dense in the HIGH range so a ~1-year history
-# isn't truncated below the annual season (384/448 = ~12.5/14.7 months); it's coarse in the low range
-# (short stores carry no seasonality to keep). Buckets compile LAZILY, so a bucket no series reaches
-# (e.g. 512 — this dataset tops out ~478 days) never compiles and costs nothing. Override w/ env.
+# >= largest run horizon (CV 14, holdout 39)
+MAX_HORIZON = int(os.environ.get("TIMESFM_MAX_HORIZON", "64"))
+# Context buckets (multiples of the 32-pt patch). A series is fed to the LARGEST bucket that
+# fits its real history, most-recent points only — no padding. TimesFM NaNs when an input is
+# shorter than its compiled context (short input -> internal pad+mask -> NaN, issue #321), so we
+# size the model to the data, not the data to the model. Granularity is dense in the HIGH range
+# so a ~1-year history isn't truncated below the annual season (384/448 = ~12.5/14.7 months);
+# it's coarse in the low range (short stores carry no seasonality to keep). Buckets compile
+# LAZILY, so a bucket no series reaches (e.g. 512 — this dataset tops out ~478 days) never
+# compiles and costs nothing. Override w/ env.
 BUCKETS = tuple(
     sorted(int(x) for x in os.environ.get("TIMESFM_BUCKETS", "64,128,256,384,448,512").split(","))
 )

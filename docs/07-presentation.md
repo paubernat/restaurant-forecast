@@ -97,9 +97,10 @@ depth in Q&A.
 
 ## Slide 7 · Temporal validation + recursive contract — DEEPEST · 2:30 · → crit 2
 The rigor showcase — spend the most time here.
-- **Holdout carved off first:** the last `final_horizon_days` (**39** = the
-  2017-04-23→05-31 Recruit window, incl. Golden Week). CV never touches it; only
-  the final deployable model is refit *including* it.
+- **Holdout carved off first:** the last `final_horizon_days` (**39** = the length
+  of the official Recruit test window) of labeled data — labels end 2017-04-22, so
+  it's 2017-03-15→04-22 (Golden Week sits in the unlabeled scoring window). CV never
+  touches it; only the final deployable model is refit *including* it.
 - **Rolling-origin, expanding-window CV** on the earlier history: a split is
   **three dates, not row indices** (`train_end < valid_start ≤ valid_end`), **no
   shuffle**. Each fold trains on **all** history up to its cutoff (so the train
@@ -118,10 +119,11 @@ The rigor showcase — spend the most time here.
   never null**. Mirrors production (no tomorrow's actuals today). The genuine
   warm-up NaNs (first ~35 days/store, no past yet) are handled **natively by the
   trees** (LightGBM/XGBoost learn a default split direction — no imputation).
-- **Golden Week stratification:** ≥1 fold trains through the 2016 holiday; error
-  reported normal vs holiday — "the difference between a metric and an
-  operational insight."
-- **Visual:** rolling-origin split diagram (overlapping, stride-5) + error-by-
+- **Seasonal stratification:** ≥1 fold trains through the 2016 Golden Week (so the
+  trees learn the spike); error is reported **by season**, not hidden in an average
+  — "the difference between a metric and an operational insight." (A finer
+  holiday-window cut is available via the `golden_week` feature if wanted.)
+- **Visual:** rolling-origin split diagram (overlapping, stride-9) + error-by-
   horizon curve.
 
 ## Slide 8 · 4-step selection pipeline + tree params — MED · 1:30 · → crit 1, 2
@@ -162,8 +164,9 @@ The centerpiece.
   only difference is the TimesFM signal → the RMSLE gap **is** TimesFM's marginal
   value (not a leaderboard number).
 - **Engineering aside (½ bullet):** Transformer never runs inside the recursive
-  loop — the whole-window signal is forecast **once per origin** and memoised
-  in-memory (Parquet/feature-store at scale). TimesFM is served from a dedicated
+  loop — the whole-window signal is forecast **once per origin**, memoised
+  in-memory and content-addressed to a **per-series disk cache** (`.cache/timesfm`)
+  so each unique forecast hits the GPU once, ever. TimesFM is served from a dedicated
   GPU **Hugging Face Space**; the pipeline calls it via `FORECAST_TIMESFM_ENDPOINT`
   and needs only `requests` (no torch, no checkpoint). Honest framing: "no GPU
   budget for full sweeps, so the design offloads it cleanly — ~6 min/call on CPU
@@ -177,9 +180,9 @@ The comparison the brief explicitly rewards.
   zero-shot → hybrid).
 - **Pred vs real** (1-2 representative stores).
 - **Residuals.**
-- **Error-by-horizon** (where each model degrades over 7 days).
+- **Error-by-horizon** (where each model degrades over the 14-day horizon).
 - **Feature importance** (where the TimesFM signal ranks in the hybrid).
-- **Normal vs Golden Week** error split.
+- **By-season** error split.
 - Land the **ablation delta** as the headline.
 - ⚠ **Depends on plots being generated — see Dependencies.**
 
@@ -263,8 +266,8 @@ The comparison the brief explicitly rewards.
   marginal value, doesn't assume it; honesty is the point per the brief.
 - **Brand-new restaurant, no history?** TimesFM zero-shot cold-start; trees fall
   back to genre/area/dow priors.
-- **TimesFM cost in production?** Batch precompute + memoise (in-memory now,
-  Parquet/feature-store at scale) + GPU endpoint; nightly CronJob, not a live API.
+- **TimesFM cost in production?** Content-addressed per-series cache (disk today,
+  shared feature store at scale) + GPU endpoint; nightly CronJob, not a live API.
 - **Why stride 9 in the CV (not step = horizon)?** Step = horizon is a multiple of
   7 → every fold starts on the same weekday and the by-horizon error gets
   confounded with day-of-week. Stride 9 is coprime with 7, so origins rotate

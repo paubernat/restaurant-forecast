@@ -42,6 +42,8 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+# Notebooks are exploratory EDA: chained `plt` calls (E702) and per-cell imports are idiomatic.
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

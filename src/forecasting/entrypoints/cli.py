@@ -94,7 +94,7 @@ def _registry(horizon: int, *, offline: bool = False) -> list[ModelSpec]:
         ),
     ]
     # Offline: tree/baseline models only — never builds the TimesFM forecaster, so it needs no
-    # endpoint and makes zero network calls (the CV runs fully local).
+    # TimesFM endpoint (the CV runs fully local).
     if offline:
         return base
     return [*base, *_timesfm_specs(horizon)]
@@ -166,7 +166,7 @@ def main() -> None:
     parser.add_argument(
         "--offline",
         action="store_true",
-        help="tree/baseline models only (naive, lightgbm, xgboost) — skip TimesFM, no endpoint/network",
+        help="tree/baseline models only (naive, lightgbm, xgboost) — skip the TimesFM endpoint",
     )
     args = parser.parse_args()
     if args.command in ("find-best-model", "evaluate"):
