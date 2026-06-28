@@ -1,0 +1,38 @@
+# Scheduled batch forecasting — "the system that just runs it". Nightly it loads the deployed
+# model (best_model.pkl, per selection.json) + current data and writes per-center forecasts
+# (artifacts/forecasts.csv) that would feed the auto-ordering system. Batch, not a live API —
+# the production shape for demand forecasting. See docs/03-models.md and docs/06-scaling.md.
+# (Note: emptyDir = ephemeral artifacts; use a PVC/object store so forecasts persist.)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forecast-predict
+spec:
+  schedule: "0 2 * * *"  # 02:00 daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: predict
+              image: gstock-forecasting:latest
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "forecasting", "predict"]
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: 2Gi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+              volumeMounts:
+                - name: artifacts
+                  mountPath: /app/artifacts
+          volumes:
+            - name: artifacts
+              emptyDir: {}

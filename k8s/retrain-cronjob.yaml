@@ -1,0 +1,48 @@
+# Scheduled retrain. Weekly it refits the *already-selected* winner (from selection.json)
+# on all current data and re-saves best_model.pkl — keeping the deployed model fresh without
+# rerunning the expensive selection. Cheaper than find-best-model; the predict CronJob then
+# forecasts from the model this refreshes. See docs/03-models.md and docs/06-scaling.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forecast-retrain
+spec:
+  schedule: "0 3 * * 1"  # 03:00 every Monday
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: retrain
+              image: gstock-forecasting:latest
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "forecasting", "train"]
+              env:
+                # TimesFM HF Space. Token is optional (only if the Space is private); create with:
+                #   kubectl create secret generic timesfm --from-literal=endpoint-token=<token>
+                - name: FORECAST_TIMESFM_ENDPOINT
+                  value: "https://paubernat3030-times-fm-server.hf.space/forecast"
+                - name: FORECAST_TIMESFM_ENDPOINT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: timesfm
+                      key: endpoint-token
+                      optional: true
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: 2Gi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+              volumeMounts:
+                - name: artifacts
+                  mountPath: /app/artifacts
+          volumes:
+            - name: artifacts
+              emptyDir: {}

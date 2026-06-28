@@ -1,0 +1,28 @@
+# `docker compose up` runs the full pipeline (train -> temporal CV -> plots) with no
+# manual steps, and serves the MLflow UI for browsing the runs it logs.
+services:
+  forecast:
+    build: .
+    image: gstock-forecasting
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      # TimesFM HF Space. Put real values in a (gitignored) .env — compose reads it automatically.
+      # Unset = CV runs tree/baseline models only. Token only needed if the Space is private.
+      FORECAST_TIMESFM_ENDPOINT: ${FORECAST_TIMESFM_ENDPOINT:-}
+      FORECAST_TIMESFM_ENDPOINT_TOKEN: ${FORECAST_TIMESFM_ENDPOINT_TOKEN:-}
+    volumes:
+      - ./artifacts:/app/artifacts
+    depends_on:
+      - mlflow
+    command: ["python", "-m", "forecasting", "evaluate"]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri /mlruns
+      --default-artifact-root /mlruns

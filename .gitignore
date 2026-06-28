@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Data — full Recruit CSVs are bundled via `make data`; keep large raw files out of normal commits
+# (remove this rule when intentionally committing the bundled dataset, see docs/01-data.md)
+data/raw/*.csv
+
+# Artifacts & experiment tracking
+artifacts/
+mlruns/
+mlflow.db
+*.parquet
+
+# TimesFM checkpoint cache (only if running the model locally; normally served via HF Space)
+.cache/
+checkpoints/
+
+# Secrets — never commit the HF Space token. Keep it in a local .env (read by docker compose).
+.env
+*.env
+!.env.example
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
