@@ -7,9 +7,10 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Data — full Recruit CSVs are bundled via `make data`; keep large raw files out of normal commits
-# (remove this rule when intentionally committing the bundled dataset, see docs/01-data.md)
-data/raw/*.csv
+# Data — the Recruit CSVs are committed so the repo is self-contained (docker run works anywhere).
+# hpg_reserve.csv is 120MB (> GitHub's 100MB limit), so only its .gz is committed; the loader
+# (adapters/data/recruit_csv.py) reads .csv or .csv.gz. Keep the uncompressed one out of commits.
+data/raw/hpg_reserve.csv
 
 # Artifacts & experiment tracking
 artifacts/
@@ -17,7 +18,7 @@ mlruns/
 mlflow.db
 *.parquet
 
-# TimesFM checkpoint cache (only if running the model locally; normally served via HF Space)
+# TimesFM remote-forecast cache (content-addressed .npz per series; FORECAST_TIMESFM_CACHE_DIR)
 .cache/
 checkpoints/
 

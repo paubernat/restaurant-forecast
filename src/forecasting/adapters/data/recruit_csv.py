@@ -40,8 +40,15 @@ class RecruitCsvSource(DataSource):
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
 
+    def _csv(self, name: str) -> Path:
+        """Path to a table, preferring the plain CSV and falling back to a gzipped one.
+        hpg_reserve.csv ships gzipped in-repo (it exceeds GitHub's 100MB limit uncompressed);
+        pandas.read_csv decompresses .gz transparently by extension."""
+        plain = self.root / name
+        return plain if plain.exists() else self.root / f"{name}.gz"
+
     def load(self) -> RawData:
-        missing = [f for f in _REQUIRED if not (self.root / f).exists()]
+        missing = [f for f in _REQUIRED if not self._csv(f).exists()]
         if missing:
             raise FileNotFoundError(
                 f"Missing Recruit CSV(s) in {self.root}: {missing}. "
@@ -55,19 +62,19 @@ class RecruitCsvSource(DataSource):
         )
 
     def _visits(self) -> pd.DataFrame:
-        df = pd.read_csv(self.root / "air_visit_data.csv", parse_dates=["visit_date"])
+        df = pd.read_csv(self._csv("air_visit_data.csv"), parse_dates=["visit_date"])
         return df.rename(columns={"air_store_id": "store_id", "visit_date": "date"})[
             ["store_id", "date", "visitors"]
         ]
 
     def _reservations(self) -> pd.DataFrame:
         dt = ["visit_datetime", "reserve_datetime"]
-        air = pd.read_csv(self.root / "air_reserve.csv", parse_dates=dt).rename(
+        air = pd.read_csv(self._csv("air_reserve.csv"), parse_dates=dt).rename(
             columns={"air_store_id": "store_id"}
         )
-        relation = pd.read_csv(self.root / "store_id_relation.csv")
+        relation = pd.read_csv(self._csv("store_id_relation.csv"))
         hpg = (
-            pd.read_csv(self.root / "hpg_reserve.csv", parse_dates=dt)
+            pd.read_csv(self._csv("hpg_reserve.csv"), parse_dates=dt)
             .merge(relation, on="hpg_store_id", how="inner")  # map HPG id -> AIR id
             .rename(columns={"air_store_id": "store_id"})
         )
@@ -80,7 +87,7 @@ class RecruitCsvSource(DataSource):
         return res[["store_id", "visit_date", "reserve_visitors", "lead_time_days"]]
 
     def _stores(self) -> pd.DataFrame:
-        df = pd.read_csv(self.root / "air_store_info.csv")
+        df = pd.read_csv(self._csv("air_store_info.csv"))
         return df.rename(
             columns={
                 "air_store_id": "store_id",
@@ -92,7 +99,7 @@ class RecruitCsvSource(DataSource):
         )[["store_id", "genre", "area", "lat", "lon"]]
 
     def _holidays(self) -> pd.DataFrame:
-        df = pd.read_csv(self.root / "date_info.csv", parse_dates=["calendar_date"])
+        df = pd.read_csv(self._csv("date_info.csv"), parse_dates=["calendar_date"])
         return df.rename(columns={"calendar_date": "date", "holiday_flg": "is_holiday"})[
             ["date", "is_holiday"]
         ]
