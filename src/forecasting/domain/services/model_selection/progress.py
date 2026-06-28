@@ -9,10 +9,23 @@ from __future__ import annotations
 
 import sys
 import time
+from pathlib import Path
 
 _START = time.perf_counter()
+_SINK = None  # optional run log file (set per CV run via set_log_file)
+
+
+def set_log_file(path) -> None:
+    """Also tee progress lines to `path` (creating parent dirs). One file per CV run."""
+    global _SINK
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _SINK = open(path, "a", buffering=1)  # line-buffered so `tail -f` is live
 
 
 def log(msg: str) -> None:
     el = time.perf_counter() - _START
-    print(f"[{int(el) // 60:02d}:{int(el) % 60:02d}] {msg}", file=sys.stderr, flush=True)
+    line = f"[{int(el) // 60:02d}:{int(el) % 60:02d}] {msg}"
+    print(line, file=sys.stderr, flush=True)
+    if _SINK is not None:
+        print(line, file=_SINK, flush=True)

@@ -18,6 +18,10 @@ mlruns/
 mlflow.db
 *.parquet
 
+# Per-run logs (logs/<cv_run_id>.log)
+logs/
+*.log
+
 # TimesFM remote-forecast cache (content-addressed .npz per series; FORECAST_TIMESFM_CACHE_DIR)
 .cache/
 checkpoints/

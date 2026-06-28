@@ -108,7 +108,14 @@ def _log_report(result, report, tracker, store, plots) -> None:
     tracker.start_run("report-summary")
     w = result["step3_winner"]
     tracker.log_params(
-        {"winner": w["model"], **{f"param_{k}": str(v) for k, v in w["params"].items()}}
+        {
+            "winner": w["model"],
+            "metric": result["metric"],
+            "horizon": result["horizon"],
+            "folds": result["n_folds"],
+            "final_horizon": result["final_horizon"],
+            **{f"param_{k}": str(v) for k, v in w["params"].items()},
+        }
     )
     if result["holdout_metrics"]:
         tracker.log_metrics({f"holdout_{k}": v for k, v in result["holdout_metrics"].items()})

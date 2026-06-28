@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 from itertools import product
+from pathlib import Path
+from uuid import uuid4
 
 from ..adapters.data.recruit_csv import RecruitCsvSource
 from ..adapters.local_artifacts import LocalArtifactStore
@@ -19,6 +21,7 @@ from ..adapters.models.xgboost_model import XGBoostModel
 from ..application import find_best_model, predict, train
 from ..application.find_best_model import ModelSpec
 from ..config import settings
+from ..domain.services.model_selection.progress import log, set_log_file
 
 
 def _grid(options: dict[str, list]) -> list[dict]:
@@ -105,10 +108,13 @@ def _find_best_model(
 ) -> None:
     """`find-best-model` (and its `evaluate` alias): full CV selection + comparison report."""
     horizon = horizon or settings.horizon_days
+    run_id = uuid4().hex  # shared by the MLflow tag (cv_run_id) and this run's logs/<id>.log
+    set_log_file(Path("logs") / f"{run_id}.log")
+    log(f"run_id={run_id} → logs/{run_id}.log")
     find_best_model.run(
         source=RecruitCsvSource(settings.data_root),
         registry=_registry(horizon, offline=offline),
-        tracker=MLflowTracker(tracking_uri=settings.mlflow_tracking_uri),
+        tracker=MLflowTracker(tracking_uri=settings.mlflow_tracking_uri, run_id=run_id),
         artifact_store=LocalArtifactStore(settings.artifacts_root),
         settings=settings,
         metric_name=metric,

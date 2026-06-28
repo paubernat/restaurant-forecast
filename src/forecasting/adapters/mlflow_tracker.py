@@ -18,13 +18,14 @@ from ..domain.ports.tracker import ExperimentTracker
 
 class MLflowTracker(ExperimentTracker):
     def __init__(
-        self, experiment: str = "gstock-forecasting", tracking_uri: str | None = None
+        self, experiment: str = "gstock-forecasting", tracking_uri: str | None = None,
+        run_id: str | None = None,
     ) -> None:
         self.experiment = experiment
-        # One id per CV run (this tracker lives for a single `evaluate`/`find-best-model`
-        # invocation). Tagged onto every run below so they group/filter together in the UI:
+        # One id per CV run. Passed in by the CLI so it matches the run's logs/<id>.log; else
+        # self-generated. Tagged onto every run below so they group/filter together in the UI:
         # `mlflow runs ... --filter "tags.cv_run_id = '<id>'"`.
-        self.cv_run_id = uuid4().hex
+        self.cv_run_id = run_id or uuid4().hex
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(experiment)
