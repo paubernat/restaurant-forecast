@@ -30,13 +30,15 @@ class EvalResult:
     """Metrics for one model on one evaluation window.
 
     `metrics` is the overall suite over the model's last-year CV predictions; `by_segment`
-    holds the per-season split (`season(date)`); `by_horizon` holds error as a function of
-    days-ahead (one row per offset 1..horizon).
+    holds the per-season split (`season(date)`); `by_region` the per-prefecture split; and
+    `by_horizon` holds error as a function of days-ahead (one row per offset 1..horizon). Each
+    split carries the full metric suite (rmsle / mae / weighted_mae).
     """
 
     model_name: str
     metrics: dict[str, float]
     by_segment: dict[str, dict[str, float]] = field(default_factory=dict)
+    by_region: dict[str, dict[str, float]] = field(default_factory=dict)
     by_horizon: pd.DataFrame | None = None
 
 

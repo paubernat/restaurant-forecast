@@ -130,10 +130,12 @@ make install
 make evaluate              # data is bundled; export FORECAST_TIMESFM_ENDPOINT to include TimesFM
 ```
 
-Outputs land in `artifacts/`: the comparison plots (pred-vs-real, residuals, error-by-horizon,
-seasonal, feature importances), `selection.json` (chosen winner + horizon + holdout metrics),
-and `best_model.pkl`. Browse the tracked runs with `mlflow ui --backend-store-uri
-sqlite:///mlflow.db` (or `docker compose up` → http://localhost:5000).
+Outputs land in `artifacts/`: **`report/index.html`** — a single HTML report bundling every
+chart (forecast vs actual split by model family, error by season / prefecture / horizon for all
+three metrics, residuals, feature importances) — alongside the individual PNGs, `selection.json`
+(chosen winner + horizon + holdout metrics), and `best_model.pkl`. Open `report/index.html`
+first. Browse the tracked runs with `mlflow ui --backend-store-uri sqlite:///mlflow.db` (or
+`docker compose up` → http://localhost:5000).
 
 ## Kubernetes (demo)
 

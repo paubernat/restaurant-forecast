@@ -63,13 +63,20 @@ cross-model `ComparisonReport` (numbers only; plots in `adapters/plotting.render
 MLflow logging in the use case). No second CV pass — it **reuses the retained step-3 fold
 predictions** (the last year of 14-day CV), and adds one final forecast per model. Per model:
 
-- **Overall + by-season + by-horizon**, all from the retained CV predictions. The seasonal
-  view (`evaluation.season(date)`, N-hemisphere by month) is the "descomposición estacional" —
-  *performance by season*, not a statsmodels decomposition, so no new dependency. By-horizon is
-  one row per days-ahead offset 1..14 (≈829 stores/offset, so it's robust).
+- **Overall + by-season + by-prefecture + by-horizon**, all (the full RMSLE/MAE/weighted_mae
+  suite) from the retained CV predictions. The seasonal view (`evaluation.season(date)`,
+  N-hemisphere by month) is the "descomposición estacional" — *performance by season*, not a
+  statsmodels decomposition, so no new dependency. By-prefecture groups stores by the first
+  token of their address (the `area_prefecture` split). By-horizon is one row per days-ahead
+  offset 1..14 (≈829 stores/offset, so it's robust).
 - **The final 39-day forecast** — each model fit on the whole CV panel, rolled forward
   `final_horizon_days` over the untouched holdout: the headline **pred-vs-real**. Plus tree
   **feature importances**.
+
+`adapters/plotting.render_report` turns that into the figure set **and an `index.html`** — a
+single scannable report (forecast split by model family, the three breakdowns one metric per
+panel, residuals, importances), written to `artifacts/report/` and logged to MLflow. It is the
+headline artifact of a CV run: open `artifacts/report/index.html`.
 
 The deployable winner is then re-fit on **all** data (incl. the holdout) and persisted
 (`best_model.pkl` + `selection.json`) — the only model that ever sees the holdout.

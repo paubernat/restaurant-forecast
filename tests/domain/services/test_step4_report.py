@@ -6,8 +6,13 @@ from __future__ import annotations
 import pandas as pd
 
 from forecasting.domain.entities import ComparisonReport
+from forecasting.domain.services.evaluation import get_metrics
 from forecasting.domain.services.model_selection import ModelSpec
-from forecasting.domain.services.model_selection.step4_report import build_report
+from forecasting.domain.services.model_selection.step4_report import (
+    _eval_result,
+    _store_regions,
+    build_report,
+)
 
 
 class _Flat:
@@ -80,3 +85,25 @@ def test_build_report_breaks_down_by_season_and_horizon(raw):
     # Importances only for the tree spec.
     assert "tree" in report.importances and "flat" not in report.importances
     assert set(report.importances["tree"]) == {"lag_7", "dow", "store_mean"}
+
+
+def test_eval_result_breaks_down_by_prefecture(raw):
+    """by_region groups CV preds by store prefecture (area's first token) and the per-region
+    metrics match the suite computed on that region's rows alone."""
+    regions = _store_regions(raw)
+    assert regions["air_a"] == "Tokyo" and regions["air_c"] == "Osaka"  # from the fixture areas
+
+    preds = pd.DataFrame({
+        "store_id": ["air_a", "air_a", "air_c", "air_c"],
+        "date": pd.to_datetime(["2016-04-10", "2016-04-11", "2016-04-10", "2016-04-11"]),
+        "y_pred": [5.0, 7.0, 9.0, 4.0],
+        "y_true": [6.0, 6.0, 8.0, 5.0],
+        "horizon_offset": [1, 2, 1, 2],
+    })
+    weights = {"under_weight": 1.0, "over_weight": 1.0}
+    res = _eval_result("m", preds, weights, regions)
+
+    assert set(res.by_region) == {"Tokyo", "Osaka"}
+    osaka = preds[preds["store_id"] == "air_c"]
+    expected = get_metrics(osaka["y_true"].to_numpy(), osaka["y_pred"].to_numpy(), **weights)
+    assert res.by_region["Osaka"] == expected

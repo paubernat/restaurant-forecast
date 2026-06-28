@@ -33,19 +33,33 @@ def _suite(df: pd.DataFrame, weights: dict) -> dict[str, float]:
     return get_metrics(df["y_true"].to_numpy(), df["y_pred"].to_numpy(), **weights)
 
 
-def _eval_result(name: str, preds: pd.DataFrame | None, weights: dict) -> EvalResult:
+def _store_regions(raw) -> dict[str, str]:
+    """store_id -> prefecture, the first whitespace token of the address (mirrors the
+    area_prefecture split in features/builder.py). Empty if no stores table."""
+    stores = getattr(raw, "stores", None)
+    if stores is None or "area" not in stores.columns:
+        return {}
+    pref = stores["area"].astype(str).str.split(n=1).str[0]
+    return dict(zip(stores[STORE], pref, strict=False))
+
+
+def _eval_result(
+    name: str, preds: pd.DataFrame | None, weights: dict, regions: dict[str, str]
+) -> EvalResult:
     if preds is None or preds.empty:
         return EvalResult(model_name=name, metrics={})
     by_segment = {
         s: _suite(g, weights) for s, g in preds.groupby(preds[DATE].map(season), sort=False)
     }
+    pref = preds[STORE].map(regions).fillna("unknown")
+    by_region = {r: _suite(g, weights) for r, g in preds.groupby(pref, sort=False)}
     by_horizon = pd.DataFrame(
         [
             {"horizon_offset": int(off), **_suite(g, weights)}
             for off, g in preds.groupby("horizon_offset")
         ]
     ).sort_values("horizon_offset", ignore_index=True)
-    return EvalResult(name, _suite(preds, weights), by_segment, by_horizon)
+    return EvalResult(name, _suite(preds, weights), by_segment, by_region, by_horizon)
 
 
 def _holdout_forecast(spec, params, cv_feat, cv_panel, holdout_obs, raw, selected, final_horizon):
@@ -81,12 +95,13 @@ def build_report(
 ) -> ComparisonReport:
     """Per-model CV breakdown (from retained step-3 preds) + a final holdout forecast each."""
     cv_feat = build_panel_features(raw, cv_panel)
+    regions = _store_regions(raw)
     results: dict[str, EvalResult] = {}
     holdout_preds: dict[str, pd.DataFrame] = {}
     importances: dict[str, dict[str, float]] = {}
     for name, spec in specs.items():
         log(f"  step4: holdout forecast {name} (+{final_horizon}d)…")
-        results[name] = _eval_result(name, cv_preds.get(name), weights)
+        results[name] = _eval_result(name, cv_preds.get(name), weights, regions)
         frame, imp = _holdout_forecast(
             spec, best_params[name], cv_feat, cv_panel, holdout_obs, raw, selected, final_horizon
         )
