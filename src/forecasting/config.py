@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # Model selection (find_best_model)
     selection_metric: str = "rmsle"  # metric the CV ranks by in steps 1 & 3
-    feature_select_threshold: float = 0.995  # keep features up to this cumulative gain
+    feature_select_threshold: float = 0.98  # keep features up to this cumulative gain
     # weighted_mae: under-prediction (stockout) penalised harder than over (waste)
     under_weight: float = 2.0
     over_weight: float = 1.0
