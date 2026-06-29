@@ -18,6 +18,8 @@ cache-misses in a batch are POSTed; if the whole batch is cached, no HTTP call h
 from __future__ import annotations
 
 import hashlib
+import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -95,13 +97,29 @@ class RemoteTimesFMForecaster:
             np.savez(tmp, point=val[0], quant=val[1])
             tmp.replace(p)
 
+    # Retry transient endpoint errors (a Space restart/cold-start blips for a minute or two)
+    # so one hiccup never tears down an hours-long run. A *paused* Space won't recover on its
+    # own, so the bounded backoff (~3.5 min total) eventually gives up rather than hanging.
+    _RETRY_WAITS = (10, 30, 60, 120)
+
     def _remote(self, trimmed: list[np.ndarray], horizon: int) -> tuple[np.ndarray, np.ndarray]:
         payload = {"horizon": horizon, "series": [t.tolist() for t in trimmed]}
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
-        r = requests.post(self.endpoint, json=payload, headers=headers, timeout=self.timeout)
-        r.raise_for_status()
-        d = r.json()
-        return np.asarray(d["point"], dtype=float), np.asarray(d["quantiles"], dtype=float)
+        last_err: Exception | None = None
+        for attempt, wait in enumerate((0, *self._RETRY_WAITS)):
+            if wait:
+                print(f"[timesfm] endpoint error, retry {attempt}/{len(self._RETRY_WAITS)} "
+                      f"in {wait}s: {last_err}", file=sys.stderr, flush=True)
+                time.sleep(wait)
+            try:
+                r = requests.post(self.endpoint, json=payload, headers=headers,
+                                  timeout=self.timeout)
+                r.raise_for_status()
+                d = r.json()
+                return np.asarray(d["point"], dtype=float), np.asarray(d["quantiles"], dtype=float)
+            except requests.exceptions.RequestException as e:
+                last_err = e
+        raise last_err  # type: ignore[misc]
 
 
 if __name__ == "__main__":  # self-check: mem cache, disk persistence, partial-batch miss
