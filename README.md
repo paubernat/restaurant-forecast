@@ -83,7 +83,15 @@ The domain imports no adapters; the CLI is the only place they're wired together
 git clone <repo-url> && cd gstock
 python -m venv .venv && source .venv/bin/activate   # recommended
 make install                                        # pip install -e ".[dev]"
-make test                                           # 46 tests (~15s) — confirms the install
+make test                                           # 47 tests (~30s) — confirms the install
+```
+
+No `make` (or Xcode Command Line Tools not set up on macOS)? Run the commands directly —
+every target is a one-line wrapper:
+
+```bash
+pip install -e ".[dev]"     # = make install
+pytest -q                   # = make test
 ```
 
 ### 2 · TimesFM endpoint (optional)
