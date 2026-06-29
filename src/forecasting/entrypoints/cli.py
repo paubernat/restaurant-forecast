@@ -156,9 +156,28 @@ def _predict(horizon: int | None) -> None:
     )
 
 
+def _render_report() -> None:
+    """`render-report`: re-render the charts from the persisted report.pkl — no model run, no
+    endpoint. Lets you iterate on plotting without re-running the CV."""
+    store = LocalArtifactStore(settings.artifacts_root)
+    path = store.path_for("report.pkl")
+    if not path.exists():
+        raise SystemExit("No artifacts/report.pkl — run find-best-model first.")
+    import pickle
+
+    from ..adapters.plotting import render_report
+
+    report = pickle.loads(path.read_bytes())
+    render_report(report, store.path_for("report"))
+    log(f"re-rendered charts → {store.path_for('report')}/index.html")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="forecasting")
-    parser.add_argument("command", choices=["train", "predict", "evaluate", "find-best-model"])
+    parser.add_argument(
+        "command",
+        choices=["train", "predict", "evaluate", "find-best-model", "render-report"],
+    )
     parser.add_argument(
         "--metric", default=None, help="CV ranking metric (e.g. rmsle, weighted_mae)"
     )
@@ -181,6 +200,8 @@ def main() -> None:
         _train()
     elif args.command == "predict":
         _predict(args.horizon)
+    elif args.command == "render-report":
+        _render_report()
 
 
 if __name__ == "__main__":

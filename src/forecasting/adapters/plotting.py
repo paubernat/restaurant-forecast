@@ -1,10 +1,11 @@
 """Comparison plots for the step-4 report (matplotlib, Agg — headless/Docker safe).
 
 `render_report(report, out_dir)` writes the figure set and returns the paths:
+  - holdout_scores.png      final-holdout score per model, 3 metrics, with/without the naive (2x3)
   - pred_vs_real.png        aggregate actual-vs-models over the holdout + 2 sample stores
-  - seasonal.png            RMSLE/MAE/weighted_mae by season, per model (1x3)
-  - error_by_horizon.png    each metric vs days-ahead, per model (1x3)
-  - error_by_prefecture.png each metric by prefecture, per model (1x3)
+  - seasonal.png            by-season error per model, 3 metrics, with/without the naive (2x3)
+  - error_by_horizon.png    error vs days-ahead per model, 3 metrics, with/without the naive (2x3)
+  - error_by_prefecture.png each metric by prefecture, per model (stacked 3x1)
   - feature_importance_<model>.png   top relative-gain features per tree model
   - residuals.png           residual distribution per model (outliers clipped)
   - index.html              all of the above bundled into one scannable report (the CV headline)
@@ -135,16 +136,60 @@ def _by_metric_figure(title, categories, models, value_of, colors, out_dir, fnam
     return _save(fig, out_dir / fname)
 
 
+def _two_row_by_metric(title, models, draw, out_dir: Path, fname: str) -> Path:
+    """2x3 small multiples. Row 0 = all models; row 1 = baseline (naive) excluded, so the close
+    models stop being squashed by the naive's much larger error. Columns = the 3 metrics.
+    `draw(ax, metric, model_subset, colors)` renders one cell. Colors are stable across rows."""
+    colors = _model_colors(models)
+    rows = [("with baseline", models),
+            ("good models only", [m for m in models if "naive" not in m])]
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9), squeeze=False)
+    for r, (row_label, subset) in enumerate(rows):
+        for c, metric in enumerate(_METRICS):
+            ax = axes[r][c]
+            draw(ax, metric, subset, colors)
+            if r == 0:
+                ax.set_title(_METRIC_LABEL[metric])
+            if c == 0:
+                ax.set_ylabel(row_label, fontsize=11, fontweight="bold")
+            ax.grid(True, axis="y", alpha=0.25)
+        if axes[r][0].get_legend_handles_labels()[1]:
+            axes[r][0].legend(fontsize=7)
+    fig.suptitle(title, fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    return _save(fig, out_dir / fname)
+
+
+def _holdout_scores(report, out_dir: Path) -> Path:
+    """The headline: each model's metric on the final holdout (with vs without the naive)."""
+    models = list(report.holdout_metrics)
+
+    def draw(ax, metric, subset, colors):
+        vals = [report.holdout_metrics[n].get(metric, 0.0) for n in subset]
+        ax.bar(range(len(subset)), vals, color=[colors[n] for n in subset])
+        ax.set_xticks(range(len(subset)))
+        ax.set_xticklabels(subset, rotation=40, ha="right", fontsize=8)
+
+    return _two_row_by_metric(
+        f"Final {report.final_horizon}-day holdout — model comparison",
+        models, draw, out_dir, "holdout_scores.png",
+    )
+
+
 def _seasonal(report, out_dir: Path) -> Path:
     seasons = ["spring", "summer", "autumn", "winter"]
     models = [n for n, r in report.results.items() if r.by_segment]
 
-    def value_of(name, season, metric):
-        return report.results[name].by_segment.get(season, {}).get(metric, 0.0)
+    def draw(ax, metric, subset, colors):
+        _grouped_bars(
+            ax, seasons, subset,
+            lambda n, s, m=metric: report.results[n].by_segment.get(s, {}).get(m, 0.0),
+            colors,
+        )
 
-    return _by_metric_figure(
-        "Error by season (xgboost ↔ timesfm_hybrid = the ablation)",
-        seasons, models, value_of, _model_colors(models), out_dir, "seasonal.png",
+    return _two_row_by_metric(
+        "Error by season (CV) — with vs without the naive baseline",
+        models, draw, out_dir, "seasonal.png",
     )
 
 
@@ -170,20 +215,19 @@ def _by_prefecture(report, out_dir: Path) -> Path:
 
 def _error_by_horizon(report, out_dir: Path) -> Path:
     models = [n for n, r in report.results.items() if r.by_horizon is not None]
-    colors = _model_colors(models)
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
-    for ax, metric in zip(axes, _METRICS, strict=True):
-        for name in models:
+
+    def draw(ax, metric, subset, colors):
+        for name in subset:
             bh = report.results[name].by_horizon
             if bh is None or bh.empty:
                 continue
             ax.plot(bh["horizon_offset"], bh[metric], marker="o", label=name, color=colors[name])
         ax.set_xlabel("days ahead")
-        ax.set_title(_METRIC_LABEL[metric])
-        ax.grid(True, alpha=0.3)
-    axes[0].legend(fontsize=8)
-    fig.suptitle(f"Error by horizon (1..{report.horizon})", fontsize=13)
-    return _save(fig, out_dir / "error_by_horizon.png")
+
+    return _two_row_by_metric(
+        f"Error by horizon (1..{report.horizon}) — with vs without the naive baseline",
+        models, draw, out_dir, "error_by_horizon.png",
+    )
 
 
 def _residuals(report, out_dir: Path) -> Path:
@@ -219,12 +263,16 @@ def _feature_importance(name: str, imp: dict[str, float], out_dir: Path) -> Path
 
 
 _CAPTIONS = {
+    "holdout_scores": "Headline comparison: each model's score on the final holdout, for all "
+                      "three metrics. Top row includes the naive baseline; bottom row drops it "
+                      "so the close models are readable.",
     "pred_vs_real": "Final holdout forecast vs actual, one row per model family (Baseline / "
                     "Trees / TimesFM) so each panel stays readable. Columns: all stores, then "
                     "2 sample stores.",
-    "seasonal": "Error by season per model (RMSLE / MAE / weighted MAE). xgboost ↔ timesfm_hybrid "
-                "is the foundation-model ablation.",
-    "error_by_horizon": "How error grows with days-ahead — forecasts should degrade with distance.",
+    "seasonal": "Error by season per model (CV). Top row with the naive baseline, bottom row "
+                "without it. xgboost ↔ timesfm_hybrid is the foundation-model ablation.",
+    "error_by_horizon": "How error grows with days-ahead — forecasts should degrade with "
+                        "distance. Top row with the naive, bottom row without.",
     "error_by_prefecture": "Error by prefecture (the busiest), one metric per row.",
     "residuals": "Residual (actual − predicted) spread on the holdout; long tail trimmed.",
 }
@@ -232,7 +280,8 @@ _CAPTIONS = {
 
 def _html_report(paths: list[Path], out_dir: Path, report) -> Path:
     """Bundle the figures into a single scannable index.html (the CV run's headline output)."""
-    order = ["pred_vs_real", "seasonal", "error_by_horizon", "error_by_prefecture", "residuals"]
+    order = ["holdout_scores", "pred_vs_real", "seasonal", "error_by_horizon",
+             "error_by_prefecture", "residuals"]
     by_stem = {p.stem: p for p in paths}
     sections = [by_stem[s] for s in order if s in by_stem]
     sections += [p for p in paths if p.stem.startswith("feature_importance_")]
@@ -265,6 +314,8 @@ def render_report(report, out_dir: Path) -> list[Path]:
         _error_by_horizon(report, out_dir),
         _residuals(report, out_dir),
     ]
+    if report.holdout_metrics:
+        paths.append(_holdout_scores(report, out_dir))
     if any(r.by_region for r in report.results.values()):
         paths.append(_by_prefecture(report, out_dir))
     for name, imp in report.importances.items():

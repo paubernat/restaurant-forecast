@@ -98,6 +98,7 @@ def build_report(
     regions = _store_regions(raw)
     results: dict[str, EvalResult] = {}
     holdout_preds: dict[str, pd.DataFrame] = {}
+    holdout_metrics: dict[str, dict[str, float]] = {}
     importances: dict[str, dict[str, float]] = {}
     for name, spec in specs.items():
         log(f"  step4: holdout forecast {name} (+{final_horizon}d)…")
@@ -106,6 +107,8 @@ def build_report(
             spec, best_params[name], cv_feat, cv_panel, holdout_obs, raw, selected, final_horizon
         )
         holdout_preds[name] = frame
+        if not frame.empty:
+            holdout_metrics[name] = _suite(frame, weights)
         if imp is not None:
             importances[name] = imp
     return ComparisonReport(
@@ -114,6 +117,7 @@ def build_report(
         importances=importances,
         horizon=horizon,
         final_horizon=final_horizon,
+        holdout_metrics=holdout_metrics,
     )
 
 
@@ -161,10 +165,7 @@ class Step4Report:
         )
 
     def _winner_holdout_metrics(self, report, winner_name: str) -> dict[str, float]:
-        preds = report.holdout_preds.get(winner_name)
-        if preds is None or preds.empty:
-            return {}
-        return get_metrics(preds["y_true"].to_numpy(), preds["y_pred"].to_numpy(), **self.weights)
+        return report.holdout_metrics.get(winner_name, {})
 
     def _fit_deployable_winner(self, panel, selected: list[str], tuning: Step3Result):
         log(f"  step4: fitting deployable winner {tuning.winner_name} on all data…")

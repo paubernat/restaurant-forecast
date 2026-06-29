@@ -48,7 +48,8 @@ class ComparisonReport:
 
     `results` maps model name -> its last-year CV `EvalResult`. `holdout_preds` maps model
     name -> the final `final_horizon`-day pred-vs-real frame (store_id, date, y_pred, y_true)
-    — the headline forecast. `importances` maps tree model name -> {feature: gain}.
+    — the headline forecast. `holdout_metrics` maps model name -> the metric suite on that
+    holdout forecast. `importances` maps tree model name -> {feature: gain}.
     """
 
     results: dict[str, EvalResult]
@@ -56,3 +57,4 @@ class ComparisonReport:
     importances: dict[str, dict[str, float]]
     horizon: int
     final_horizon: int
+    holdout_metrics: dict[str, dict[str, float]] = field(default_factory=dict)

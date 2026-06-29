@@ -13,6 +13,7 @@ The registry (model factories + grids) and all ports are injected from the compo
 from __future__ import annotations
 
 import json
+import pickle
 
 import pandas as pd
 
@@ -59,6 +60,9 @@ def _persist(result, report, winner, store):
         "holdout_metrics": result["holdout_metrics"],
     }
     store.save("selection.json", json.dumps(selection, indent=2).encode())
+    # Persist the report (pure data) so charts can be re-rendered with `render-report` — no
+    # model run, no endpoint — after any plotting tweak.
+    store.save("report.pkl", pickle.dumps(report))
     return render_report(report, store.path_for("report"))
 
 
